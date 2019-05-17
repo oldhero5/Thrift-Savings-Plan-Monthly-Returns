@@ -68,7 +68,8 @@ asset_returns_tbltime <-
 asset_returns_long <-
   asset_returns_dplyr_byhand%>%
   gather(asset,returns, -date)%>%
-  group_by(asset)
+  group_by(asset)%>%
+  na.omit
 
 # Data Visualization of Returns
 highchart(type  ="stock")%>%

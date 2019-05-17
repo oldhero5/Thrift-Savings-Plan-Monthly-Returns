@@ -1,0 +1,188 @@
+---
+title: "TSP Returns Shiny"
+author: "Marty Harris"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+---
+```{r setup, message = FALSE}
+library(tidyverse)
+library(highcharter)
+library(tidyquant)
+library(timetk)
+```
+
+Sidebar {.sidebar}
+=====================================
+
+```{r}
+
+fluidRow(
+  column(6,
+  textInput("stock1", 'Stock 1', "C")),
+  column(5,
+         numericInput("w1", "Port. %", 10,
+                      min = 0, max = 100))
+)
+
+fluidRow(
+  column(6,
+  textInput("stock2", 'Stock 2', "F")),
+  column(5,
+         numericInput("w2", "Port. %", 10,
+                      min = 0, max = 100))
+)
+
+fluidRow(
+  column(6,
+  textInput("stock3", 'Stock 3', "G")),
+  column(5,
+         numericInput("w3", "Port. %", 10,
+                      min = 0, max = 100))
+)
+
+fluidRow(
+  column(6,
+  textInput("stock4", 'Stock 4', "S")),
+  column(5,
+         numericInput("w4", "Port. %", 10,
+                      min = 0, max = 100))
+)
+
+fluidRow(
+  column(6,
+  textInput("stock5", 'Stock 5', "I")),
+  column(5,
+         numericInput("w5", "Port. %", 10,
+                      min = 0, max = 100))
+)
+fluidRow(
+  column(6,
+  textInput("stock6", 'Stock 6', "Income")),
+  column(5,
+         numericInput("w6", "Port. %", 10,
+                      min = 0, max = 100))
+)
+fluidRow(
+  column(6,
+  textInput("stock7", 'Stock 7', "L2020")),
+  column(5,
+         numericInput("w7", "Port. %", 10,
+                      min = 0, max = 100))
+)
+fluidRow(
+  column(6,
+  textInput("stock8", 'Stock 8', "L2030")),
+  column(5,
+         numericInput("w8", "Port. %", 10,
+                      min = 0, max = 100))
+)
+fluidRow(
+  column(6,
+  textInput("stock9", 'Stock 9', "L2040")),
+  column(5,
+         numericInput("w9", "Port. %", 10,
+                      min = 0, max = 100))
+)
+fluidRow(
+  column(6,
+  textInput("stock10", 'Stock 10', "L2050")),
+  column(5,
+         numericInput("w10", "Port. %", 10,
+                      min = 0, max = 100))
+)
+  fluidRow(
+  column(7,
+  dateInput("date", "Starting Date", "2013-01-01", format = "yyyy-mm-dd"))
+)
+
+fluidRow(
+  column(7,
+  selectInput("rebalance", "rebalance freq",
+              c("Yearly" = "years",
+                "Monthly" = "months",
+                "Weekly" = "weeks"))
+  )
+)
+
+actionButton("go", "Submit")
+
+portfolio_returns_byhand <- eventReactive(input$go, {
+  
+symbols <- c(input$stock1,input$stock2,
+             input$stock3,input$stock4,
+             input$stock5,input$stock6,
+             input$stock7,input$stock8,
+             input$stock9,input$stock10)
+  
+w <- c(input$w1/100, input$w2/100, 
+      input$w3/100, input$w4/100, input$w5/100,
+      input$w6/100, input$w7/100, input$w8/100,
+      input$w9/100, input$w10/100)
+  
+prices <-
+     read_csv("~/DATA/FINANCE/ReproducibleFinance/shareprices.csv",col_types =
+             cols(date = 
+                    col_date(format = "%m/%d/%Y")))%>% 
+            tk_xts(date_var = date)
+  
+asset_returns_long <- 
+      prices %>% 
+      to.monthly(indexAt = "last", OHLC = FALSE) %>% 
+      tk_tbl(preserve_index = TRUE, rename_index = "date") %>%
+      gather(asset, returns, -date) %>% 
+      group_by(asset) %>%  
+      mutate(returns = (log(returns) - log(lag(returns))))
+
+  portfolio_returns_byhand <- 
+    asset_returns_long %>% 
+    tq_portfolio(assets_col = asset, 
+               returns_col = returns, 
+               weights = w,
+               col_rename = "returns")
+})
+
+```
+
+Returns
+=====================================  
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+
+
+### Histogram
+
+```{r}
+renderPlot({
+  portfolio_returns_byhand() %>% 
+    ggplot(aes(x = returns)) +
+    geom_histogram(alpha = 0.25, binwidth = .01, fill = "cornflowerblue")
+})
+```
+
+### Density
+
+```{r}
+renderPlot({
+  portfolio_returns_byhand() %>% 
+    ggplot(aes(x = returns)) +
+  geom_density(size = 1, color = "red") 
+})
+```
+
+
+### Histogram + Density
+
+```{r}
+renderPlot({
+  portfolio_returns_byhand() %>% 
+    ggplot(aes(x = returns)) +
+    geom_histogram(alpha = 0.25, binwidth = .01, fill = "cornflowerblue") +
+    geom_density(geom = "line", size = 1, color = "red") 
+})
+```
+
+  
